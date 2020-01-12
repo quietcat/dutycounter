@@ -28,6 +28,14 @@ void UART_Init()
     SCON      = 0x50;
 }
 
+void Comparator_Init()
+{
+    int i = 0;
+    CPT0CN    = 0x8F;
+    for (i = 0; i < 60; i++);  // Wait 20us for initialization
+    CPT0CN    &= ~0x30;
+}
+
 void Port_IO_Init()
 {
     // P0.0  -  TX   (UART), Open-Drain  Digital
@@ -39,13 +47,13 @@ void Port_IO_Init()
     // P0.6  -  Unassigned,  Open-Drain  Digital
     // P0.7  -  Unassigned,  Open-Drain  Digital
 
-    // P1.0  -  Unassigned,  Open-Drain  Digital
-    // P1.1  -  Unassigned,  Open-Drain  Digital
-    // P1.2  -  Unassigned,  Open-Drain  Digital
+    // P1.0  -  Unassigned,  Open-Drain  Analog
+    // P1.1  -  Unassigned,  Open-Drain  Analog
+    // P1.2  -  CP0  (Cmp0), Open-Drain  Digital
     // P1.3  -  Unassigned,  Open-Drain  Digital
     // P1.4  -  Unassigned,  Open-Drain  Digital
     // P1.5  -  Unassigned,  Open-Drain  Digital
-    // P1.6  -  Unassigned,  Open-Drain  Digital
+    // P1.6  -  Unassigned,  Push-Pull   Digital
     // P1.7  -  Unassigned,  Push-Pull   Digital
 
     // P2.0  -  Unassigned,  Push-Pull   Digital
@@ -58,9 +66,11 @@ void Port_IO_Init()
     // P2.7  -  Unassigned,  Push-Pull   Digital
 
     PRT0MX    = 0x01;
-    PRT1CF    = 0x80;
+    PRT1MX    = 0x01;
+    PRT1CF    = 0xC0;
     PRT2CF    = 0xFF;
     PRT3CF    = 0xFF;
+    P1MODE    = 0xFC;
 }
 
 void Oscillator_Init()
@@ -75,6 +85,8 @@ void Oscillator_Init()
 void Interrupts_Init()
 {
     IE        = 0xB0;
+    EIE1      = 0x10;
+    EIP1      = 0x10;
 }
 
 // Initialization function for device,
@@ -84,6 +96,7 @@ void Init_Device(void)
     Reset_Sources_Init();
     Timer_Init();
     UART_Init();
+    Comparator_Init();
     Port_IO_Init();
     Oscillator_Init();
     Interrupts_Init();

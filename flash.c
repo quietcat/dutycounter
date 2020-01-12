@@ -108,13 +108,12 @@ void set_current_block() {
   }
 }
 
-sbit P1_7 = P1 ^ 7;
 
 void register_minute(void) {
 	if (current_block > 1) {
 		set_current_block();
 		load_minute();
-		P1_7 = 0;
+//		P1_7 = 0;
 	} else {
 	  block_type *block_ptr = &blocks[current_block];
 	  unsigned int bi;
@@ -122,9 +121,9 @@ void register_minute(void) {
 	  for (bi = 0; bi < MINUTE_BIT_BYTES; bi++) {
 	    b = block_ptr->minute_bits[bi];
 	    if (b > 0) {
-		  P1_7 = 1;
+//		  P1_7 = 1;
 	      write_block_byte(current_block, offsetof(block_type, minute_bits) + bi, b >> 1);
-		  P1_7 = 0;
+//		  P1_7 = 0;
 	      break;
 	    }
 	  }

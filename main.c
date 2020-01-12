@@ -1,9 +1,10 @@
 #include <intrins.h>
 #include <c8051f200.h> // SFR declarations
 #include "flash.h"
-
+#include "F200_FlashPrimitives.h"
 
 #define INTERRUPT_TIMER2               5  // Timer2 Overflow
+#define INTERRUPT_CP0_FALLING			10 // CP0 falling edge
 
 #define TICKS_PER_SECOND 200
 
@@ -71,9 +72,14 @@ void display_minute(void) {
 }
 
 
-void LCDrefresh_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
+sbit P1_6 = P1 ^ 6;
+sbit P1_7 = P1 ^ 7;
+
+
+void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	// every tick	
 
+//	P1_7 = 0;
 	if (display_on) {
 		unsigned char inv = ((com) ? 0xff : 0x00);
 		P2 = ((display[0] ^ inv) & 0x7F) | (com ? 0x80 : 0x00);
@@ -96,7 +102,7 @@ void LCDrefresh_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 
 	if (tick == 0) {
 		if (second == 0) {
-			register_minute();
+//			register_minute();
 			display_minute();
 		} else {
 			display_second();
@@ -115,7 +121,22 @@ void LCDrefresh_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	}
 
 
+//	P1_7 = 1;
 	TF2 = 0;
+}
+
+void CP0_Falling_ISR (void) interrupt INTERRUPT_CP0_FALLING using 2 {
+	
+	if (!(minute == 0 && second == 0)) {
+		P1_6 = 0;
+		FLASH_PageErase(0x1800);
+		FLASH_ByteWrite (0x1800, 0xAA);
+		FLASH_ByteWrite (0x1801, 0xBB);
+		FLASH_ByteWrite (0x1802, 0xCC);
+		FLASH_ByteWrite (0x1803, 0xDD);
+		P1_6 = 1;
+	}
+	CPT0CN    &= ~0x30; // CP0FIF = 0 and CP0RIF = 0;
 }
 
 void Init_Device(void);
