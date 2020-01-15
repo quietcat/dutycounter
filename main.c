@@ -1,5 +1,6 @@
 #include <intrins.h>
 #include <c8051f200.h> // SFR declarations
+#include <si_toolchain.h>
 #include "flash.h"
 #include "F200_FlashPrimitives.h"
 
@@ -10,6 +11,7 @@
 
 volatile unsigned char tick = 0;
 volatile unsigned char second = 0;
+volatile unsigned char minute = 0;
 
 volatile unsigned char display[2] = {0x40,0x40};
 
@@ -72,9 +74,14 @@ void display_minute(void) {
 }
 
 
+sbit P1_4 = P1 ^ 4;
+sbit P1_5 = P1 ^ 5;
 sbit P1_6 = P1 ^ 6;
 sbit P1_7 = P1 ^ 7;
 
+#define COUNTING (P1_4 == 0)
+#define MAX_TIME_SAVE_DEBOUNCE 10
+unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
 
 void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	// every tick	
@@ -102,21 +109,31 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 
 	if (tick == 0) {
 		if (second == 0) {
-//			register_minute();
 			display_minute();
 		} else {
 			display_second();
 		}
 	}
 
+	if (time_save_debounce < MAX_TIME_SAVE_DEBOUNCE && !COUNTING) {
+		time_save_debounce += 1;
+		if (time_save_debounce == MAX_TIME_SAVE_DEBOUNCE) {
+			save_time();
+		}
+	}
+
 	if (++tick == TICKS_PER_SECOND) {
 		// once every second
 		tick = 0;
-
-		if (++second == 60) {
-			// once every minute
-			second = 0;
-			minute++;
+		if ( COUNTING ) {
+			time.u32 += 1;
+			time_save_debounce = 0;
+	
+			if (++second == 60) {
+				// once every minute
+				second = 0;
+				minute++;
+			}
 		}
 	}
 
@@ -125,16 +142,12 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	TF2 = 0;
 }
 
+SI_UU32_t int32 = {0x123456L};
+
 void CP0_Falling_ISR (void) interrupt INTERRUPT_CP0_FALLING using 2 {
 	
-	if (!(minute == 0 && second == 0)) {
-		P1_6 = 0;
-		FLASH_PageErase(0x1800);
-		FLASH_ByteWrite (0x1800, 0xAA);
-		FLASH_ByteWrite (0x1801, 0xBB);
-		FLASH_ByteWrite (0x1802, 0xCC);
-		FLASH_ByteWrite (0x1803, 0xDD);
-		P1_6 = 1;
+	if (!(minute == 0 && second == 0) && COUNTING) {
+		save_time();
 	}
 	CPT0CN    &= ~0x30; // CP0FIF = 0 and CP0RIF = 0;
 }
@@ -147,6 +160,9 @@ void main (void) {
    WDTCN = 0xad;
 
    Init_Device();
+   load_time();
+   second = time.u32 % 60L;
+   minute = time.u32 / 60L;
 
    while (1);
 }

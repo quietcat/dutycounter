@@ -1,31 +1,113 @@
+#define SYSCLK 11059200
+
 #include <stddef.h>
 #include <stdio.h>
-#include <c8051f200.h> // SFR declarations
+#include <c8051F200.h> // SFR declarations
+#include <si_toolchain.h>
 #include "flash.h"
 
+#include "F200_FlashPrimitives.h"
 
-#define SYSCLK 11059200
+#pragma NOAREGS
+
 #define TICK_DIVISOR (1152*4)
 #define TICKS_IN_SECOND (SYSCLK/12/TICK_DIVISOR)
-#define OTHER_BLOCK(block) ((block)==0?1:0)
 
-#define BLOCK_SIG 0xB4
+#define SEGMENT_SIZE 0x200
+
+#define TIME_SLOTS (SEGMENT_SIZE*2/sizeof(SI_UU32_t))
+#define LAST_SLOT (TIME_SLOTS-1)
+#define PAGE0 0x1800
+#define PAGE1 (PAGE0+SEGMENT_SIZE)
+#define TIME_SLOT_ADDR(slot) (PAGE0 + slot * sizeof(SI_UU32_t))
+
+volatile SI_UU32_t data time = {0L};
+SI_UU32_t code time_slots[TIME_SLOTS] _at_ 0x1800;
+volatile int time_slot = 0;
+
+#pragma disable
+void save_time(void) using 3 {
+	unsigned char b;
+	for (b = 0; b < sizeof(SI_UU32_t); b++) {
+		FLASH_ByteWrite(TIME_SLOT_ADDR(time_slot) + b, time.u8[b]);
+	}
+	if (time_slot == 0) {
+		FLASH_PageErase(PAGE1);
+	} else if (time_slot == TIME_SLOTS/2) {
+		FLASH_PageErase(PAGE0);
+	}
+	time_slot += 1;
+	if (time_slot == TIME_SLOTS) {
+		time_slot = 0;
+	}
+}
+
+void load_time(void) using 3 {
+	int slot;
+	time.u32 = 0L;
+	time_slot = 0;
+	if (time_slots[0].u8[B3] != 0xff) {
+		if (time_slots[TIME_SLOTS/2].u8[B3] != 0xff) {
+			for (slot = 0; slot < TIME_SLOTS; slot++) {
+				if (time_slots[slot].u8[B3] != 0xff ) {
+					if (time.u32 < time_slots[slot].u32) {
+						time.u32 = time_slots[slot].u32;
+						time_slot = slot;
+					}
+				}
+			}
+			if (time_slot < TIME_SLOTS/2) {
+				FLASH_PageErase(PAGE1);
+			} else {
+				FLASH_PageErase(PAGE0);
+			}
+			time_slot += 1;
+		} else {
+			for (slot = 0; slot < TIME_SLOTS/2; slot++) {
+				if (time_slots[slot].u8[B3] != 0xff && time_slots[slot+1].u8[B3] == 0xff ) {
+					time.u32 = time_slots[slot].u32;
+					time_slot = slot + 1;
+					break;
+				}
+			}
+		}
+	} else {
+		if (time_slots[TIME_SLOTS/2].u8[B3] != 0xff) {
+			for (slot = TIME_SLOTS/2; slot < TIME_SLOTS; slot++) {
+				if (time_slots[slot].u8[B3] != 0xff && (slot == LAST_SLOT || time_slots[slot+1].u8[B3] == 0xff) ) {
+					time.u32 = time_slots[slot].u32;
+					time_slot = slot + 1;
+					break;
+				}
+			}
+		} // else do nothing, both segments uninitialized
+	}
+	if (time_slot == TIME_SLOTS) {
+		time_slot = 0;
+	}
+}
+
+
+
+//#define OTHER_BLOCK(block) ((block)==0?1:0)
+
+//#define BLOCK_SIG 0xB4
 
 // 512 byte block
 // 4000 minutes
 // block: 00 B4 00 00 xx xx [500 bytes one bit per minute ...0000111111...] FF FF FF FF FF FF
 // xx xx number of blocks
 
-#define BLOCK_SIZE 0x200
+/*
 #define MINUTE_BIT_BYTES 500
 #define MINUTES_IN_BLOCK ((MINUTE_BIT_BYTES)*8)
 #define FILLER_BYTES 6
 
-#define BLOCK_ADDR(block_id) (0x1800 + (block_id)*BLOCK_SIZE)
+#define BLOCK_ADDR(block_id) (0x1800 + (block_id)*SEGMENT_SIZE)
 #define BLOCK_VALID(block_id) (blocks[block_id].header.lead_in == 0 && blocks[block_id].header.sig == BLOCK_SIG)
+*/
 
-#include "F200_FlashPrimitives.h"
-
+/*
 typedef struct {
     struct {
       unsigned char lead_in;
@@ -42,7 +124,6 @@ block_type code blocks[2] _at_ BLOCK_ADDR(0);
 volatile unsigned char current_block = 2;
 volatile unsigned int minute = 0;
 
-#pragma NOAREGS
 void load_minute(void) {
   block_type *block_ptr = &blocks[current_block];
   unsigned int minutes = block_ptr->header.block_base;
@@ -137,3 +218,5 @@ void register_minute(void) {
 	  }
 	}
 }
+*/
+

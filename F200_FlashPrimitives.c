@@ -22,6 +22,8 @@
 #include "F200_FlashPrimitives.h"
 #include <c8051F200.h>
 
+#pragma NOAREGS
+
 //-----------------------------------------------------------------------------
 // Structures, Unions, Enumerations, and Type Definitions
 //-----------------------------------------------------------------------------
