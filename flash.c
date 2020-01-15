@@ -42,6 +42,7 @@ void save_time(void) using 3 {
 	}
 }
 
+#pragma disable
 void load_time(void) using 3 {
 	int slot;
 	time.u32 = 0L;

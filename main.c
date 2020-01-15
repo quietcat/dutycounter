@@ -79,6 +79,9 @@ sbit P1_5 = P1 ^ 5;
 sbit P1_6 = P1 ^ 6;
 sbit P1_7 = P1 ^ 7;
 
+// bit 6
+#define POWER_OK (CPT0CN & 0x40)
+
 #define COUNTING (P1_4 == 0)
 #define MAX_TIME_SAVE_DEBOUNCE 10
 unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
@@ -117,7 +120,7 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 
 	if (time_save_debounce < MAX_TIME_SAVE_DEBOUNCE && !COUNTING) {
 		time_save_debounce += 1;
-		if (time_save_debounce == MAX_TIME_SAVE_DEBOUNCE) {
+		if (time_save_debounce == MAX_TIME_SAVE_DEBOUNCE && POWER_OK) {
 			save_time();
 		}
 	}
@@ -142,11 +145,10 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	TF2 = 0;
 }
 
-SI_UU32_t int32 = {0x123456L};
-
+// power fail
 void CP0_Falling_ISR (void) interrupt INTERRUPT_CP0_FALLING using 2 {
 	
-	if (!(minute == 0 && second == 0) && COUNTING) {
+	if ( COUNTING ) {
 		save_time();
 	}
 	CPT0CN    &= ~0x30; // CP0FIF = 0 and CP0RIF = 0;
