@@ -39,6 +39,19 @@ const unsigned char digit_lookup[16] = {
 0x5c  //0b01011100, //F
 };
 
+#define MAX_RESET_STEPS 8
+
+const unsigned int reset_display_lookup[MAX_RESET_STEPS] = {
+0x0004,
+0x0006,
+0x0007,
+0x0027,
+0x2027,
+0x3027,
+0x3827,
+0x3C27
+};
+
 void display_second(void) {
 	one = 0;
 	display_blink = (second > 49);
@@ -83,8 +96,10 @@ sbit P1_7 = P1 ^ 7;
 #define POWER_OK (CPT0CN & 0x40)
 
 #define COUNTING (P1_4 == 0)
+#define RESETTING (P1_5 == 0)
 #define MAX_TIME_SAVE_DEBOUNCE 10
 unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
+unsigned char reset_hold_step = 0;
 
 void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	// every tick	
@@ -110,18 +125,35 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 		display_on = 1;
 	}
 
-	if (tick == 0) {
-		if (second == 0) {
-			display_minute();
-		} else {
-			display_second();
-		}
-	}
-
 	if (time_save_debounce < MAX_TIME_SAVE_DEBOUNCE && !COUNTING) {
 		time_save_debounce += 1;
 		if (time_save_debounce == MAX_TIME_SAVE_DEBOUNCE && POWER_OK) {
 			save_time();
+		}
+	}
+
+	if (RESETTING && !COUNTING) {
+		if (reset_hold_step == MAX_RESET_STEPS) {
+			display_blink = 1;
+			// reset
+		} else {
+			display_blink = 0;
+			if (tick == 0 || tick == 100) {
+				SI_UU16_t d;
+				d.u16 = reset_display_lookup[reset_hold_step];
+				display[0] = d.u8[LSB];
+				display[1] = d.u8[MSB];
+				reset_hold_step += 1;
+			}
+		}
+	} else {
+		reset_hold_step = 0;
+		if (tick == 0) {
+			if (second == 0) {
+				display_minute();
+			} else {
+				display_second();
+			}
 		}
 	}
 
