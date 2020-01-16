@@ -43,6 +43,21 @@ void save_time(void) using 3 {
 }
 
 #pragma disable
+void reset_time(void) using 3 {
+	if (time_slot < TIME_SLOTS/2) {
+		FLASH_PageErase(PAGE0);
+	} else {
+		FLASH_PageErase(PAGE1);
+	}
+	time_slot = 0;
+	time.u32 = 0L;
+	FLASH_ByteWrite(TIME_SLOT_ADDR(0) + 0, 0);
+	FLASH_ByteWrite(TIME_SLOT_ADDR(0) + 1, 0);
+	FLASH_ByteWrite(TIME_SLOT_ADDR(0) + 2, 0);
+	FLASH_ByteWrite(TIME_SLOT_ADDR(0) + 3, 0);
+}
+
+#pragma disable
 void load_time(void) using 3 {
 	int slot;
 	time.u32 = 0L;

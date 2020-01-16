@@ -144,6 +144,11 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 				display[0] = d.u8[LSB];
 				display[1] = d.u8[MSB];
 				reset_hold_step += 1;
+				if (reset_hold_step == MAX_RESET_STEPS && POWER_OK) {
+					reset_time();
+					minute = 0;
+					second = 0;
+				}
 			}
 		}
 	} else {

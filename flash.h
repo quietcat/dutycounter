@@ -3,6 +3,7 @@
 
 void load_time(void);
 void save_time(void);
+void reset_time(void);
 extern SI_UU32_t time;
 
 #endif // LCD_FLASH_H
