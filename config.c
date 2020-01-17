@@ -56,7 +56,7 @@ void Port_IO_Init()
     // P1.3  -  Unassigned,  Open-Drain  Analog
     // P1.4  -  Unassigned,  Open-Drain  Analog
     // P1.5  -  CP1  (Cmp1), Push-Pull   Digital
-    // P1.6  -  Unassigned,  Push-Pull   Digital
+    // P1.6  -  Unassigned,  Open-Drain  Digital
     // P1.7  -  Unassigned,  Push-Pull   Digital
 
     // P2.0  -  Unassigned,  Push-Pull   Digital
@@ -70,7 +70,7 @@ void Port_IO_Init()
 
     PRT0MX    = 0x01;
     PRT1MX    = 0x03;
-    PRT1CF    = 0xE4;
+    PRT1CF    = 0xA4;
     PRT2CF    = 0xFF;
     PRT3CF    = 0xFF;
     P1MODE    = 0xE4;

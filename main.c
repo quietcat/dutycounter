@@ -52,6 +52,23 @@ const unsigned int reset_display_lookup[MAX_RESET_STEPS] = {
 0x3C27
 };
 
+sbit P1_6 = P1 ^ 6;
+sbit P1_7 = P1 ^ 7;
+
+// bit 6
+#define POWER_OK (CPT0CN & 0x40)
+
+#define COUNTING (CPT1CN & 0x40)
+#define RESETTING (P1_6 == 0)
+#define MAX_TIME_SAVE_DEBOUNCE 10
+unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
+unsigned char reset_hold_step = 0;
+unsigned char duty_counter = 0;
+
+// how many seconds on one duty unit (3 hours)
+#define DUTY_UNIT_DIVIDER (60L*60L*3L)
+#define CALCULATE_DUTY (duty_counter = (time.u32 > 199L*DUTY_UNIT_DIVIDER) ? 199 : time.u32/DUTY_UNIT_DIVIDER)
+
 void display_second(void) {
 	one = 0;
 	display_blink = (second > 49);
@@ -72,32 +89,33 @@ void display_minute(void) {
 		display[1] = digit_lookup[9];
 	} else {
 		unsigned int partial = minute;
-		if (minute > 99) {
-			partial -= 100;
-			one = 1;
-		} else {
-			one = 0;
+		one = (minute > 99);
+		if (one) {
+			partial = minute % 100;
 		}
 		display[0] = digit_lookup[partial % 10];
-		display[1] = digit_lookup[partial / 10];
 		if (!one && partial < 10) { // blank out tens if it is zero and there is no hundred
 			display[1] = 0;
+		} else {
+			display[1] = digit_lookup[partial / 10];
 		}
 	}   
 }
 
-
-sbit P1_6 = P1 ^ 6;
-sbit P1_7 = P1 ^ 7;
-
-// bit 6
-#define POWER_OK (CPT0CN & 0x40)
-
-#define COUNTING (CPT1CN & 0x40)
-#define RESETTING (P1_6 == 0)
-#define MAX_TIME_SAVE_DEBOUNCE 10
-unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
-unsigned char reset_hold_step = 0;
+void display_duty(void) {
+	unsigned char partial = duty_counter;
+	one = (duty_counter > 99);
+	if (one) {
+		partial = duty_counter % 100;
+	}
+	display_blink = one;
+	display[0] = digit_lookup[partial % 10];
+	if (!one && partial < 10) { // blank out tens if it is zero and there is no hundred
+		display[1] = 0;
+	} else {
+		display[1] = digit_lookup[partial / 10];
+	}
+}
 
 void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 	// every tick	
@@ -127,6 +145,9 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 		time_save_debounce += 1;
 		if (time_save_debounce == MAX_TIME_SAVE_DEBOUNCE && POWER_OK) {
 			save_time();
+			CALCULATE_DUTY;
+			minute = 0;
+			second = 0;
 		}
 	}
 
@@ -141,21 +162,25 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 				d.u16 = reset_display_lookup[reset_hold_step];
 				display[0] = d.u8[LSB];
 				display[1] = d.u8[MSB];
+				one = 0;
 				reset_hold_step += 1;
 				if (reset_hold_step == MAX_RESET_STEPS && POWER_OK) {
 					reset_time();
-					minute = 0;
-					second = 0;
+					duty_counter = 0;
 				}
 			}
 		}
 	} else {
 		reset_hold_step = 0;
 		if (tick == 0) {
-			if (second == 0) {
-				display_minute();
+			if (COUNTING) {
+				if (second == 0) {
+					display_minute();
+				} else {
+					display_second();
+				}
 			} else {
-				display_second();
+				display_duty();
 			}
 		}
 	}
@@ -198,8 +223,7 @@ void main (void) {
 
    Init_Device();
    load_time();
-   second = time.u32 % 60L;
-   minute = time.u32 / 60L;
+   CALCULATE_DUTY;
 
    while (1);
 }
