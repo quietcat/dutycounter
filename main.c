@@ -87,16 +87,14 @@ void display_minute(void) {
 }
 
 
-sbit P1_4 = P1 ^ 4;
-sbit P1_5 = P1 ^ 5;
 sbit P1_6 = P1 ^ 6;
 sbit P1_7 = P1 ^ 7;
 
 // bit 6
 #define POWER_OK (CPT0CN & 0x40)
 
-#define COUNTING (P1_4 == 0)
-#define RESETTING (P1_5 == 0)
+#define COUNTING (CPT1CN & 0x40)
+#define RESETTING (P1_6 == 0)
 #define MAX_TIME_SAVE_DEBOUNCE 10
 unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
 unsigned char reset_hold_step = 0;

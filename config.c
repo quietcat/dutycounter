@@ -34,6 +34,9 @@ void Comparator_Init()
     CPT0CN    = 0x8F;
     for (i = 0; i < 60; i++);  // Wait 20us for initialization
     CPT0CN    &= ~0x30;
+    CPT1CN    = 0x8F;
+    for (i = 0; i < 60; i++);  // Wait 20us for initialization
+    CPT1CN    &= ~0x30;
 }
 
 void Port_IO_Init()
@@ -49,10 +52,10 @@ void Port_IO_Init()
 
     // P1.0  -  Unassigned,  Open-Drain  Analog
     // P1.1  -  Unassigned,  Open-Drain  Analog
-    // P1.2  -  CP0  (Cmp0), Open-Drain  Digital
-    // P1.3  -  Unassigned,  Open-Drain  Digital
-    // P1.4  -  Unassigned,  Open-Drain  Digital
-    // P1.5  -  Unassigned,  Open-Drain  Digital
+    // P1.2  -  CP0  (Cmp0), Push-Pull   Digital
+    // P1.3  -  Unassigned,  Open-Drain  Analog
+    // P1.4  -  Unassigned,  Open-Drain  Analog
+    // P1.5  -  CP1  (Cmp1), Push-Pull   Digital
     // P1.6  -  Unassigned,  Push-Pull   Digital
     // P1.7  -  Unassigned,  Push-Pull   Digital
 
@@ -66,11 +69,11 @@ void Port_IO_Init()
     // P2.7  -  Unassigned,  Push-Pull   Digital
 
     PRT0MX    = 0x01;
-    PRT1MX    = 0x01;
-    PRT1CF    = 0xC0;
+    PRT1MX    = 0x03;
+    PRT1CF    = 0xE4;
     PRT2CF    = 0xFF;
     PRT3CF    = 0xFF;
-    P1MODE    = 0xFC;
+    P1MODE    = 0xE4;
 }
 
 void Oscillator_Init()
