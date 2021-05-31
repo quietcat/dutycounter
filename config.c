@@ -41,14 +41,14 @@ void Comparator_Init()
 
 void Port_IO_Init()
 {
-    // P0.0  -  TX   (UART), Open-Drain  Digital
-    // P0.1  -  RX   (UART), Open-Drain  Digital
-    // P0.2  -  Unassigned,  Open-Drain  Digital
-    // P0.3  -  Unassigned,  Open-Drain  Digital
-    // P0.4  -  Unassigned,  Open-Drain  Digital
-    // P0.5  -  Unassigned,  Open-Drain  Digital
-    // P0.6  -  Unassigned,  Open-Drain  Digital
-    // P0.7  -  Unassigned,  Open-Drain  Digital
+    // P0.0  -  Unassigned,  Push-Pull   Digital
+    // P0.1  -  Unassigned,  Push-Pull   Digital
+    // P0.2  -  Unassigned,  Push-Pull   Digital
+    // P0.3  -  Unassigned,  Push-Pull   Digital
+    // P0.4  -  Unassigned,  Push-Pull   Digital
+    // P0.5  -  Unassigned,  Push-Pull   Digital
+    // P0.6  -  Unassigned,  Push-Pull   Digital
+    // P0.7  -  Unassigned,  Push-Pull   Digital
 
     // P1.0  -  Unassigned,  Open-Drain  Analog
     // P1.1  -  Unassigned,  Open-Drain  Analog
@@ -68,8 +68,8 @@ void Port_IO_Init()
     // P2.6  -  Unassigned,  Push-Pull   Digital
     // P2.7  -  Unassigned,  Push-Pull   Digital
 
-    PRT0MX    = 0x01;
     PRT1MX    = 0x03;
+    PRT0CF    = 0xFF;
     PRT1CF    = 0xA4;
     PRT2CF    = 0xFF;
     PRT3CF    = 0xFF;
@@ -87,7 +87,7 @@ void Oscillator_Init()
 
 void Interrupts_Init()
 {
-    IE        = 0xB0;
+    IE        = 0xA0;
     EIE1      = 0x10;
     EIP1      = 0x10;
 }

@@ -19,37 +19,66 @@ volatile bit com = 0;
 volatile bit display_on = 1;
 volatile bit one = 0;
 volatile bit display_blink = 0;
+volatile bit polarity = 0;
 
-const unsigned char digit_lookup[16] = {
-0x3f, //0b00111111, //0
-0x03, //0b00000011, //1
-0x76, //0b01110110, //2
-0x67, //0b01100111, //3
-0x4b, //0b01001011, //4
-0x6d, //0b01101101, //5
-0x7d, //0b01111101, //6
-0x07, //0b00000111, //7
-0x7f, //0b01111111, //8
-0x6f, //0b01101111, //9
-0x5f, //0b01011111, //A
-0x79, //0b01111001, //B
-0x3c, //0b00111100, //C
-0x73, //0b01110011, //D
-0x7c, //0b01111100, //E
-0x5c  //0b01011100, //F
+#include "segments.h"
+
+const unsigned char digit0_lookup[16] = {
+D0_0,
+D0_1,
+D0_2,
+D0_3,
+D0_4,
+D0_5,
+D0_6,
+D0_7,
+D0_8,
+D0_9,
+D0_A,
+D0_B,
+D0_C,
+D0_D,
+D0_E,
+D0_F,
 };
+
+const unsigned char digit1_lookup[16] = {
+D1_0,
+D1_1,
+D1_2,
+D1_3,
+D1_4,
+D1_5,
+D1_6,
+D1_7,
+D1_8,
+D1_9,
+D1_A,
+D1_B,
+D1_C,
+D1_D,
+D1_E,
+D1_F,
+};
+
+#define LCD_COM (1 << 4)
+#define LCD_COM_MASK (~LCD_COM)
+#define LCD_1 (1 << 0)
+#define LCD_1_MASK (~LCD_1)
+
+
 
 #define MAX_RESET_STEPS 8
 
 const unsigned int reset_display_lookup[MAX_RESET_STEPS] = {
-0x0004,
-0x0006,
-0x0007,
-0x0027,
-0x2027,
-0x3027,
-0x3827,
-0x3C27
+	D0_SEGA,
+	D0_SEGA | D0_SEGB,
+	D0_SEGA | D0_SEGB | D0_SEGC,
+	D0_SEGA | D0_SEGB | D0_SEGC | D0_SEGD,
+	D0_SEGA | D0_SEGB | D0_SEGC | D0_SEGD | ((D1_SEGD) << 8),
+	D0_SEGA | D0_SEGB | D0_SEGC | D0_SEGD | ((D1_SEGD | D1_SEGE) << 8),
+	D0_SEGA | D0_SEGB | D0_SEGC | D0_SEGD | ((D1_SEGD | D1_SEGE | D1_SEGF) << 8),
+	D0_SEGA | D0_SEGB | D0_SEGC | D0_SEGD | ((D1_SEGD | D1_SEGE | D1_SEGF | D1_SEGA) << 8)
 };
 
 sbit P1_6 = P1 ^ 6;
@@ -58,7 +87,8 @@ sbit P1_7 = P1 ^ 7;
 // bit 6
 #define POWER_OK (CPT0CN & 0x40)
 
-#define COUNTING (CPT1CN & 0x40)
+#define CNT_INPUT (CPT1CN & 0x40)
+#define COUNTING (!CNT_INPUT != !polarity)
 #define RESETTING (P1_6 == 0)
 #define MAX_TIME_SAVE_DEBOUNCE 10
 unsigned char time_save_debounce = MAX_TIME_SAVE_DEBOUNCE;
@@ -72,9 +102,9 @@ unsigned char duty_counter = 0;
 void display_second(void) {
 	one = 0;
 	display_blink = (second > 49);
-	display[0] = digit_lookup[second % 10];
+	display[0] = digit0_lookup[second % 10];
 	if (second > 9) {
-		display[1] = digit_lookup[second / 10];
+		display[1] = digit1_lookup[second / 10];
 	} else {
 		display[1] = 0;
 	}
@@ -85,19 +115,19 @@ void display_minute(void) {
 	display_blink = (minute > 199);
 	if (display_blink) {
 		one = 1;
-		display[0] = digit_lookup[9];
-		display[1] = digit_lookup[9];
+		display[0] = digit0_lookup[9];
+		display[1] = digit1_lookup[9];
 	} else {
 		unsigned int partial = minute;
 		one = (minute > 99);
 		if (one) {
 			partial = minute % 100;
 		}
-		display[0] = digit_lookup[partial % 10];
+		display[0] = digit0_lookup[partial % 10];
 		if (!one && partial < 10) { // blank out tens if it is zero and there is no hundred
 			display[1] = 0;
 		} else {
-			display[1] = digit_lookup[partial / 10];
+			display[1] = digit1_lookup[partial / 10];
 		}
 	}   
 }
@@ -109,11 +139,11 @@ void display_duty(void) {
 		partial = duty_counter % 100;
 	}
 	display_blink = one;
-	display[0] = digit_lookup[partial % 10];
+	display[0] = digit0_lookup[partial % 10];
 	if (!one && partial < 10) { // blank out tens if it is zero and there is no hundred
 		display[1] = 0;
 	} else {
-		display[1] = digit_lookup[partial / 10];
+		display[1] = digit1_lookup[partial / 10];
 	}
 }
 
@@ -123,11 +153,14 @@ void Timer2_ISR (void) interrupt INTERRUPT_TIMER2 using 1 {
 //	P1_7 = 0;
 	if (display_on) {
 		unsigned char inv = ((com) ? 0xff : 0x00);
-		P2 = ((display[0] ^ inv) & 0x7F) | (com ? 0x80 : 0x00);
-		P3 = (((display[1] & 0x7F) | (one ? 0x80 : 0x00)) ^ inv);
+//		P0 = ((display[0] ^ inv) & 0x7F) | (com ? 0x40 : 0x00);
+//		P2 = (((display[1] & 0x7F) | (one ? 0x80 : 0x00)) ^ inv);
+		P0 = ( ( (display[0] & LCD_1_MASK) | (one ? LCD_1 : 0x00) ) ^ inv );
+		// com bit will also be xor'd, so it should be reversed
+		P2 = ( (display[1] ^ inv) | (com ? LCD_COM : 0x00 ) );
 	} else {
+		P0 = 0;
 		P2 = 0;
-		P3 = 0;
 	}
 
 	com = !com;
@@ -224,6 +257,7 @@ void main (void) {
    Init_Device();
    load_time();
    CALCULATE_DUTY;
+   polarity = CNT_INPUT;
 
    while (1);
 }

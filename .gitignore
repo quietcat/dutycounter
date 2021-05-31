@@ -1,0 +1,9 @@
+*.LST
+*.#*
+*.OBJ
+*.out
+*.exe
+*.M51
+local/
+cyglink.txt
+lcd
